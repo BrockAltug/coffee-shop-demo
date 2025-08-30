@@ -111,6 +111,7 @@ const featuredItems = [
         { name: "Small", price: 0, volume: "8oz" },
         { name: "Medium", price: 0.75, volume: "12oz" },
         { name: "Large", price: 1.25, volume: "16oz" },
+        { name: "Extra Large", price: 1.75, volume: "20oz" },
       ],
       milkOptions: [
         { name: "Whole Milk", price: 0 },
@@ -408,6 +409,7 @@ const OptimizedMenuCard = React.memo(({ item, onSelect }: { item: any; onSelect:
             src={
               item.image ||
               "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&crop=center" ||
+              "/placeholder.svg" ||
               "/placeholder.svg"
             }
             alt={item.name}
@@ -598,26 +600,37 @@ export default function BestBrewPage() {
     "Artisanal blends, premium experience",
   ]
 
-  const handleScroll = useCallback(() => {
-    const currentScrollY = window.scrollY
-    setScrollY(currentScrollY)
-    setShowScrollTop(currentScrollY > 400)
-
-    // Update active section based on scroll position
-    const sections = ["home", "menu", "rewards", "about", "contact"]
-    const sectionElements = sections.map((id) => document.getElementById(id))
-
-    for (let i = sections.length - 1; i >= 0; i--) {
-      const element = sectionElements[i]
-      if (element && element.offsetTop <= currentScrollY + 100) {
-        setActiveSection(sections[i])
-        break
-      }
-    }
-  }, [])
-
-  const throttledScrollHandler = useCallback(
+  const handleScroll = useCallback(
     throttle(() => {
+      if (typeof window === "undefined") return
+
+      const currentScrollY = window.scrollY
+      setScrollY(currentScrollY)
+
+      // Update active section based on scroll position
+      const sections = ["home", "menu", "rewards", "about", "contact"]
+      const sectionElements = sections.map((id) => {
+        if (typeof document !== "undefined") {
+          return document.getElementById(id)
+        }
+        return null
+      })
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const element = sectionElements[i]
+        if (element && element.offsetTop <= currentScrollY + 100) {
+          setActiveSection(sections[i])
+          break
+        }
+      }
+    }, 16),
+    [],
+  )
+
+  const handleParallax = useCallback(
+    throttle(() => {
+      if (typeof window === "undefined" || typeof document === "undefined") return
+
       const scrolled = window.scrollY
       const rate = scrolled * -0.5
       const heroElement = document.querySelector(".hero-parallax")
@@ -629,18 +642,15 @@ export default function BestBrewPage() {
   )
 
   useEffect(() => {
-    window.addEventListener("scroll", throttledScrollHandler, { passive: true })
-    return () => window.removeEventListener("scroll", throttledScrollHandler)
-  }, [throttledScrollHandler])
+    if (typeof window === "undefined" || typeof document === "undefined") return
 
-  useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        const newIntersecting = {}
         entries.forEach((entry) => {
-          newIntersecting[entry.target.id] = entry.isIntersecting
+          if (entry.isIntersecting) {
+            entry.target.classList.add("animate-in")
+          }
         })
-        setIsIntersecting((prev) => ({ ...prev, ...newIntersecting }))
       },
       { threshold: 0.1, rootMargin: "-50px" },
     )
@@ -652,20 +662,24 @@ export default function BestBrewPage() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     let ticking = false
-    const throttledScroll = () => {
+
+    const scrollHandler = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
           handleScroll()
+          handleParallax()
           ticking = false
         })
         ticking = true
       }
     }
 
-    window.addEventListener("scroll", throttledScroll, { passive: true })
-    return () => window.removeEventListener("scroll", throttledScroll)
-  }, [handleScroll])
+    window.addEventListener("scroll", scrollHandler, { passive: true })
+    return () => window.removeEventListener("scroll", scrollHandler)
+  }, [handleScroll, handleParallax])
 
   useEffect(() => {
     let currentPhraseIndex = 0
@@ -733,6 +747,8 @@ export default function BestBrewPage() {
   }, [])
 
   const toggleTheme = useCallback(() => {
+    if (typeof document === "undefined" || typeof localStorage === "undefined") return
+
     const newTheme = !isDark
     setIsDark(newTheme)
     document.documentElement.classList.toggle("dark", newTheme)
@@ -740,6 +756,8 @@ export default function BestBrewPage() {
   }, [isDark])
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined" || typeof localStorage === "undefined") return
+
     const savedTheme = localStorage.getItem("theme")
     const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
     const shouldBeDark = savedTheme ? savedTheme === "dark" : systemPrefersDark
@@ -922,7 +940,12 @@ export default function BestBrewPage() {
     <div className="min-h-screen bg-background">
       <div
         className="fixed top-0 left-0 h-1 bg-gradient-to-r from-primary via-accent to-primary z-50 transition-all duration-300"
-        style={{ width: `${Math.min((scrollY / (document.body.scrollHeight - window.innerHeight)) * 100, 100)}%` }}
+        style={{
+          width:
+            typeof window !== "undefined" && typeof document !== "undefined"
+              ? `${Math.min((scrollY / (document.body.scrollHeight - window.innerHeight)) * 100, 100)}%`
+              : "0%",
+        }}
       />
 
       <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-md border-b border-border z-40 transition-all duration-300">
@@ -1154,6 +1177,7 @@ export default function BestBrewPage() {
                                 src={
                                   item.image ||
                                   "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&crop=center" ||
+                                  "/placeholder.svg" ||
                                   "/placeholder.svg"
                                 }
                                 alt={item.name}
@@ -1511,6 +1535,7 @@ export default function BestBrewPage() {
                               src={
                                 testimonial.avatar ||
                                 "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80&h=80&fit=crop&crop=face" ||
+                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={testimonial.name}
